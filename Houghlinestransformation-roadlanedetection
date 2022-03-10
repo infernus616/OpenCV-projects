@@ -1,0 +1,88 @@
+
+
+import cv2
+import pandas as pd
+import math
+import numpy as np
+import matplotlib.pyplot as plt
+
+"""
+
+Frame Mask Creation: 
+
+Our region of interest is in the shape of a polygon. 
+We want to mask everything except this region. Therefore, 
+we first have to specify the coordinates of the polygon and 
+then use it to prepare the frame mask:
+
+"""
+
+def region(image, vertices):
+    mask = np.zeros_like(image)
+    mask_color =  (255,255,255)
+    cv2.fillPoly(mask, vertices, mask_color)
+    mask_image = cv2.bitwise_and(image, mask)
+    return mask_image
+
+
+"""
+
+Image Pre-processing
+We have to perform a couple of image pre-processing operations 
+on the video frames to detect the desired lane. The pre-processing operations are:
+
+#1. Image Thresholding
+#2. Hough Line Transformation
+
+"""
+def draw_lines(image, lines):
+    height = image.shape[0]
+    width = image.shape[1]
+    blank_image = np.zeros((height, width, 3), dtype = np.uint8)
+    for line in lines:
+        for x1,y1,x2,y2 in line:
+            cv2.line(blank_image, (x1, y1), (x2, y2), (255,255,0),8, 1)
+    return blank_image
+
+def process(image):
+    reg_of_interest =[(223,358),(308,166), (353, 166),(637,248)]
+    p =np.array([reg_of_interest], np.int32)
+
+    gray_image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+    canny_image = cv2.Canny(gray_image, 50 , 70)
+    cropped_image = region(canny_image, p)
+    lines = cv2.HoughLinesP(cropped_image, 6, np.pi/60, threshold=100, lines=np.array([]), minLineLength=80, maxLineGap=30)
+
+
+    linesimg = draw_lines(image, lines)
+    linesimg = cv2.resize(linesimg, dsize=(640,360))
+    print(linesimg.shape, image.shape)
+    i = cv2.add(image, linesimg)
+
+    return i
+
+"""
+Now we will apply all these operations on each and every frame. 
+We will also save the resultant frames in a new directory:
+
+"""
+cap =cv2.VideoCapture(r'C:\Users\Dell\Desktop\video.mp4')
+
+while cap.isOpened():
+      ret, frame = cap.read()
+      frame = process(frame)
+      cv2.imshow('', frame)
+      cv2.waitKey(70)
+      if cv2.waitKey(1) & 0xFF == ord('q'):
+          break
+
+cap.release()
+cv2.destroyAllWindows()
+
+"""
+In this tutorial, we covered a simple technique for lane detection. We did not use any model or complex image features. 
+Instead, our solution was purely based on certain image pre-processing operations.
+
+However, there are going to be many scenarios where this solution will not work. For example, 
+when there will be no lane markings, or when there is too much of traffic on the road, this system will fail.
+ There are more sophisticated methods to overcome such problems in lane detection. I want 
